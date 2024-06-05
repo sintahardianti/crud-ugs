@@ -1,10 +1,25 @@
 <?php
+session_start();
+
 include 'db.php';
+
+// Pengecekan apakah pengguna sudah login
+if (!isset($_SESSION["is_login"]) || !$_SESSION["is_login"]) {
+    header("Location: akun.php");
+    exit;
+}
+
+// Logout
+if (isset($_GET['logout'])) {
+    session_unset();
+    session_destroy();
+    echo '<script>window.location.replace("akun.php");</script>';
+    exit();
+}
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['simpan'])) {
     $user = $conn->real_escape_string($_POST['user']);
     $periode = $conn->real_escape_string($_POST['periode']);
-    $keterangan = $conn->real_escape_string($_POST['keterangan']);
 
     // Fungsi untuk menghasilkan no_barang baru
     function generateNoBarang($conn) {
@@ -21,7 +36,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['simpan'])) {
     $no_barang = generateNoBarang($conn);
 
     // Insert data into the `index` table
-    $sql = "INSERT INTO `index` (no_barang, user, periode, keterangan) VALUES ('$no_barang', '$user', '$periode', '$keterangan')";
+    $sql = "INSERT INTO `index` (no_barang, user, periode) VALUES ('$no_barang', '$user', '$periode')";
     if ($conn->query($sql) === TRUE) {
         header('Location: index.php');
         exit;
@@ -38,7 +53,7 @@ $keyword = isset($_GET['keyword']) ? $_GET['keyword'] : '';
 $whereClause = "";
 if ($keyword !== '') {
     $keyword = $conn->real_escape_string($keyword); // Pastikan untuk menghindari SQL Injection
-    $whereClause = "WHERE no_barang LIKE '%$keyword%' OR user LIKE '%$keyword%' OR periode LIKE '%$keyword%' OR keterangan LIKE '%$keyword%'";
+    $whereClause = "WHERE no_barang LIKE '%$keyword%' OR user LIKE '%$keyword%' OR periode LIKE '%$keyword%'";
 }
 
 // Menghitung jumlah total halaman
@@ -78,21 +93,6 @@ if (!$result) {
 $currentData = $result->fetch_all(MYSQLI_ASSOC);
 ?>
 
-<?php
-    // Proses logout
-    if (isset($_GET['logout'])) {
-    // Hapus semua sesi
-    session_unset();
-    session_destroy();
-
-    // Arahkan pengguna ke halaman login atau halaman beranda
-    header("Location: akun.php");
-    exit();
-    }
-    
-?>
-
-<!--HTML code-->
 
 <!DOCTYPE html>
 <html lang="en">
@@ -103,8 +103,15 @@ $currentData = $result->fetch_all(MYSQLI_ASSOC);
     <title>Bukti Pengeluaran Barang</title>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.4/css/all.min.css">
-</head>
+    <script>
+    // Mengunci tombol navigasi mundur dan maju
+    history.pushState(null, null, location.href);
+    window.onpopstate = function() {
+        history.go(1);
+    };
+    </script>
 
+</head>
 <?php include "layout/header.php" ?>
 
 <body>
@@ -121,10 +128,35 @@ $currentData = $result->fetch_all(MYSQLI_ASSOC);
                         <button class="btn btn-primary ms-1" type="submit" name="cari" id="tombol-cari"
                             style="height:38px;">Cari</button>
                         <?php if ($keyword !== '') : ?>
-                        <a href="index.php" class="btn btn-sm btn-danger mx-1" style="height:38px;"><i
+                        <a href="index.php" class="btn btn-sm btn-danger mx-1" id="clear-search" style="height:38px;"><i
                                 class="fas fa-times-circle"></i></a>
                         <?php endif; ?>
                     </form>
+
+                    <script>
+                    document.getElementById('keyword').addEventListener('input', function() {
+                        const keyword = this.value.trim();
+                        const clearSearch = document.getElementById('clear-search');
+
+                        if (keyword === '') {
+                            // Remove the 'keyword' parameter from the URL
+                            const url = new URL(window.location.href);
+                            url.searchParams.delete('keyword');
+                            window.location.href = url.toString();
+
+                            // Hide the clear search button
+                            if (clearSearch) {
+                                clearSearch.style.display = 'none';
+                            }
+                        } else {
+                            // Show the clear search button
+                            if (clearSearch) {
+                                clearSearch.style.display = 'inline';
+                            }
+                        }
+                    });
+                    </script>
+
                 </div>
             </div>
         </div>
@@ -139,18 +171,21 @@ $currentData = $result->fetch_all(MYSQLI_ASSOC);
                         <th scope="col" class="no_barang">No Barang</th>
                         <th scope="col" class="user">User</th>
                         <th scope="col" class="date">Periode</th>
-                        <th scope="col" class="ket">Keterangan</th>
                         <th scope="col" class="aksi">Aksi</th>
                     </tr>
                 </thead>
                 <tbody>
+                    <?php if (empty($currentData)): ?>
+                    <tr>
+                        <td colspan="5" class="text-center">Data Tidak Ditemukan</td>
+                    </tr>
+                    <?php else: ?>
                     <?php foreach ($currentData as $index => $item): ?>
                     <tr class="isi">
                         <td><?= $offset + $index + 1 ?></td>
                         <td><?= htmlspecialchars($item['no_barang']) ?></td>
                         <td><?= htmlspecialchars($item['user']) ?></td>
                         <td><?= htmlspecialchars($item['periode']) ?></td>
-                        <td><?= htmlspecialchars($item['keterangan']) ?></td>
                         <td class="text-center">
                             <a href="detail_index.php?no_barang=<?= urlencode($item['no_barang']) ?>"
                                 class="btn btn-warning">Detail</a>
@@ -159,6 +194,7 @@ $currentData = $result->fetch_all(MYSQLI_ASSOC);
                         </td>
                     </tr>
                     <?php endforeach; ?>
+                    <?php endif; ?>
                 </tbody>
             </table>
             <nav>
@@ -259,11 +295,6 @@ $currentData = $result->fetch_all(MYSQLI_ASSOC);
                             <label for="periode" class="form-label">Periode:</label>
                             <input type="date" class="form-control" id="periode" name="periode" required>
                         </div>
-                        <div class="mb-3">
-                            <label for="keterangan" class="form-label">Keterangan:</label>
-                            <input type="text" class="form-control" id="keterangan" name="keterangan" required>
-                        </div>
-                        <br>
                         <div class="row">
                             <div class="justify content">
                                 <input type="submit" name="simpan" value="Simpan" class="btn btn-primary">
@@ -300,13 +331,14 @@ body {
 
 .popup-content {
     background-color: #fff;
-    margin: 5% auto;
-    padding: 10px;
+    margin: 8% auto;
+    padding: 20px;
     border: 1px solid #888;
     width: 60%;
     /* Adjust width as needed */
     border-radius: 10px;
     padding-bottom: 3%;
+    padding-top: 0;
 }
 
 .popup-content form>div {
@@ -335,6 +367,7 @@ body {
 .card-header {
     font-size: 1.25rem;
     font-weight: bold;
+    font-family: 'Trebuchet MS';
 }
 
 .btn-primary {
