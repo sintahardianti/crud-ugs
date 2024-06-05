@@ -4,8 +4,8 @@ session_start(); // Mulai sesi di awal halaman
 $login_message = "";
 
 // Lakukan koneksi ke database
-$host       ="localhost";
-$user       ="root";
+$host       = "localhost";
+$user       = "root";
 $password   = "";
 $db         = "akun";
 
@@ -17,17 +17,13 @@ if ($db->connect_error) {
     die("Connection failed: " . $db->connect_error);
 }
 
+// Hapus cache
+header("Cache-Control: no-store, no-cache, must-revalidate, max-age=0");
+header("Cache-Control: post-check=0, pre-check=0", false);
+header("Pragma: no-cache");
+
 // Pastikan form login telah disubmit
-if(isset($_GET['logout'])) {
-    // Hancurkan semua sesi
-    session_destroy();
-
-    // Redirect user to login page
-    header("Location: login.php");
-    exit();
-}
-
-if(isset($_POST['login'])) {
+if (isset($_POST['login'])) {
     $username = $_POST['username'];
     $password = $_POST['password'];
 
@@ -36,7 +32,7 @@ if(isset($_POST['login'])) {
     $result = $db->query($sql);
 
     // Periksa apakah ada baris hasil dari query
-    if($result->num_rows > 0){
+    if ($result->num_rows > 0) {
         // Jika ada, berarti login berhasil
         $data = $result->fetch_assoc();
 
@@ -44,26 +40,26 @@ if(isset($_POST['login'])) {
         $_SESSION["username"] = $data["username"];
         $_SESSION["is_login"] = true;
 
-        // Redirect pengguna ke halaman list.php setelah login berhasil
-        header("location: list.php");
+        // Redirect pengguna ke halaman index.php setelah login berhasil
+        header("location: index.php");
         exit();
     } else {
         // Jika tidak ada baris hasil, berarti login gagal
         $login_message = "Username atau password salah";
     }
 }
+
+// Proses logout jika ada permintaan GET 'logout'
 if (isset($_GET['logout'])) {
-    // Hapus semua sesi
     session_unset();
     session_destroy();
-    
-    // Arahkan pengguna ke halaman login atau halaman beranda
-    header("Location: akun.php"); // Ganti 'login.php' dengan halaman yang sesuai
+    // Mengarahkan kembali ke halaman login setelah logout
+    header("Location: akun.php");
+    // Menjalankan JavaScript untuk menghapus riwayat navigasi
+    echo '<script>history.replaceState({}, "", location.href);</script>';
     exit();
 }
-
 ?>
-
 
 <!DOCTYPE html>
 <html lang="en">
@@ -73,7 +69,15 @@ if (isset($_GET['logout'])) {
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Sistem Pengeluaran Barang</title>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
+    <script>
+    // Mengatur riwayat navigasi agar hanya menunjuk pada halaman akun.php
+    history.pushState(null, null, location.href);
+    window.onpopstate = function() {
+        history.go(1);
+    };
+    </script>
 </head>
+
 <style>
 body,
 html {
@@ -142,13 +146,5 @@ img {
         </div>
     </header>
 </body>
-
-<script>
-window.history.forward();
-
-function noBack() {
-    window.history.forward();
-}
-</script>
 
 </html>
