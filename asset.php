@@ -1,4 +1,21 @@
 <?php 
+
+session_start();
+
+// Pengecekan apakah pengguna sudah login
+if (!isset($_SESSION["is_login"]) || !$_SESSION["is_login"]) {
+    header("Location: akun.php");
+    exit;
+}
+
+// Logout
+if (isset($_GET['logout'])) {
+    session_unset();
+    session_destroy();
+    echo '<script>window.location.replace("akun.php");</script>';
+    exit();
+}
+
 $host       ="localhost";
 $user       ="root";
 $password   = "";
@@ -174,18 +191,6 @@ if(isset($_POST['filter'])) {
 
 ?>
 
-<?php
-    // Proses logout
-    if (isset($_GET['logout'])) {
-    // Hapus semua sesi
-    session_unset();
-    session_destroy();
-
-    // Arahkan pengguna ke halaman login atau halaman beranda
-    header("Location: akun.php");
-    exit();
-    }
-?>
 
 <!DOCTYPE html>
 <html lang="en">
@@ -196,178 +201,192 @@ if(isset($_POST['filter'])) {
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.4/css/all.min.css">
     <title>Tanda Terima Asset</title>
+    <script>
+    // Mengunci riwayat navigasi agar hanya menunjuk pada halaman asset.php
+    history.pushState(null, null, location.href);
+    window.onpopstate = function() {
+        history.go(1);
+    };
+    </script>
+
 </head>
+<?php include "layout/header.php" ?>
 
 <body>
-    <div id="container">
-        <?php include "layout/header.php" ?>
-        <div class="card">
-            <div class="card-header text-dark">
-                <h3 class="judul">Tanda Terima Asset</h3>
-                <div class="container-fluid">
-                    <div class="d-flex justify-content-between align-items-center">
-                        <button class="btn btn-success" id="new"
-                            onclick="window.location.href='fasset.php';">Tambah</button>
-                        <form class="d-flex" action="asset.php" method="GET">
+    <div class="card">
+        <div class="card-header text-dark">
+            <h3 class="judul">Tanda Terima Asset</h3>
+            <div class="container-fluid">
+                <div class="d-flex justify-content-between align-items-center">
+                    <button class="btn btn-success" id="new"
+                        onclick="window.location.href='fasset.php';">Tambah</button>
+                    <form class="d-flex" action="asset.php" method="GET">
+                        <form method="GET" action="asset.php" id="search-form">
                             <input type="text" name="keyword"
                                 value="<?= isset($_GET['keyword']) ? $_GET['keyword'] : ''; ?>"
-                                placeholder="Cari Barang" onkeyup="cariBarang()" id="keyword" class="form-control">
-                            <button class="btn btn-primary" type="submit" name="cari" id="tombol-cari">Cari</button>
+                                placeholder="Cari Barang" id="keyword" class="form-control">
+                            <button class="btn btn-primary ms-1" type="submit" name="cari"
+                                id="tombol-cari">Cari</button>
                             <?php if(isset($_GET['keyword']) && !empty($_GET['keyword'])) : ?>
-                            <a href="asset.php" class="btn btn-sm btn-danger mx-1"><i
+                            <a href="asset.php" class="btn btn-sm btn-danger mx-1" id="clear-search"><i
                                     class="fas fa-times-circle"></i></a>
                             <?php endif; ?>
                         </form>
-                    </div>
+                        <script>
+                        // sript untuk Menambahkan event listener pada kolom input untuk mengontrol tampilan ikon fas fa-times-circle.
+                        //Jika kolom input kosong, ikon disembunyikan (display: 'none').
+                        //Jika kolom input memiliki nilai, ikon ditampilkan (display: 'inline')
+                        document.getElementById('keyword').addEventListener('input', function() {
+                            if (this.value === '') {
+                                // Remove the 'keyword' parameter from the URL
+                                const url = new URL(window.location.href);
+                                url.searchParams.delete('keyword');
+                                window.location.href = url.toString();
+                            }
+                        });
 
+                        document.getElementById('keyword').addEventListener('input', function() {
+                            const clearSearch = document.getElementById('clear-search');
+                            if (this.value === '' && clearSearch) {
+                                clearSearch.style.display = 'none';
+                            } else if (clearSearch) {
+                                clearSearch.style.display = 'inline';
+                            }
+                        });
+                        </script>
+                    </form>
                 </div>
             </div>
-            <div class="card-body">
-                <table class="table" style="width: 100%;">
-                    <thead>
-                        <tr class="thead">
-                            <th scope="col" class="no">No</th>
-                            <th scope="col" class="no">No Asset</th>
-                            <th scope="col" class="date">Date</th>
-                            <th scope="col" class="user">User</th>
-                            <th scope="col" class="department">Department</th>
-                            <th scope="col" class="itemlist1">Item List</th>
-                            <th scope="col" class="aksi">AKSI</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        <?php 
-                            //sukses hapus data
-                            if (isset($_GET['sukses'])) {
-                                $sukses = "Berhasil hapus data";
-                            }
-                            ?>
-                        <?php if($sukses): ?>
-                        <div class="alert alert-success" role="alert">
-                            <?php echo $sukses; ?>
-                        </div>
-                        <?php endif; ?>
-                        <?php
-                        $keyword = isset($_GET['keyword']) ? $_GET['keyword'] : ''; // Ambil kata kunci pencarian dari URL
-
-                        $limit = 8; // Jumlah data per halaman
-                        $offset = ($halamanAktif - 1) * $limit; // Menghitung offset berdasarkan halaman aktif
-
-                        // Kueri SQL awal untuk mengambil data dari tabel asset
-                        $sql2 = "SELECT * FROM asset";
-
-                        // Jika ada kata kunci pencarian, tambahkan klausa WHERE untuk menyaring data berdasarkan inisial
-                        if (!empty($keyword)) {
-                            // Gunakan klausa WHERE untuk menyaring data berdasarkan inisial nama_barang
-                            $sql2 .= " WHERE item_list1 LIKE '$keyword%'";
-                        }
-
-                        // Tambahkan klausa ORDER BY dan LIMIT OFFSET ke kueri SQL
-                        $sql2 .= " ORDER BY id DESC LIMIT $limit OFFSET $offset";
-
-                        // Eksekusi kueri SQL
-                        $q2 = mysqli_query($koneksi, $sql2);
-
-                        // Periksa apakah ada data yang ditemukan
-                        $adaData = mysqli_num_rows($q2) > 0;
-
-                        // Menghitung nilai awal variabel $no berdasarkan offset
-                        $no = $offset + 1;
-
-                        // Loop untuk menampilkan data
-                        while ($r2 = mysqli_fetch_array($q2)) {
-                            // Ambil data dari setiap baris hasil kueri
-                            $no_asset   = $r2['no_asset'];
-                            $date       = $r2['date'];
-                            $user       = $r2['user'];
-                            $department = $r2['department'];
-                            $item_list1 = $r2['item_list1'];
-                            $item_list2 = $r2['item_list2'];
-                            $item_list3 = $r2['item_list3'];
-                            $item_list4 = $r2['item_list4'];
-                            $item_list5 = $r2['item_list5'];
-                            $item_list6 = $r2['item_list6'];
-                            $item_list7 = $r2['item_list7'];
-                            $item_list8 = $r2['item_list8'];
-                            $item_list9 = $r2['item_list9'];
-                            $item_list10 = $r2['item_list10'];
-                            $note       = $r2['note'];
-                            // Tampilkan data sesuai kebutuhan
-                        
-                        ?>
-                        <tr class="isi">
-                            <td scope="row" class="text-center"><?php echo $no++ ;?></td>
-                            <td scope="row" class="text-center"><?php echo $no_asset ;?></td>
-                            <td scope="row" class="text-center"><?php echo $date ?></td>
-                            <td scope="row" class="text-center"><?php echo $user ?></td>
-                            <td scope="row" class="text-center"><?php echo $department ?></td>
-                            <td scope="row" class="text-center">
-                                <?php echo $item_list1?><br><?php echo $item_list2?><br><?php echo $item_list3 ?></td>
-                            <td scope="row" class="aksi">
-                                <a href="fasset.php?op=edit&id=<?php echo $r2['id']; ?>" class="btn btn-warning"><i
-                                        class="fas fa-pencil-alt"></i></a>
-                                <a href="asset.php?op=delete&id=<?php echo $r2['id']; ?>"
-                                    onclick="return confirm('yakin mau hapus data?')" class="btn btn-danger"><i
-                                        class="fas fa-trash-alt"></i></a>
-                                <!-- Perbarui link print dengan menambahkan parameter ID -->
-                                <a href="passet.php?id=<?php echo $r2['id']; ?>" class="btn btn-success"
-                                    target="_blank"><i class="fas fa-print"></i></a>
-                            </td>
-                        </tr>
-                        <?php 
-                            $adaData = true;
-                            }
-                            if (!$adaData) {
-                                echo "<tr><td colspan='6' class='text-center'>Data Tidak Ditemukan</td></tr>";
-                            }
-                            
-                        ?>
-                    </tbody>
-                </table>
-                <table>
-                    <div class="mt-2 justify-content-end d-flex">
-                        <nav aria-label="Page navigation example">
-                            <ul class="pagination">
-
-                                <?php if($halamanAktif > 1) : ?>
-                                <li class="page-item">
-                                    <a class="page-link" href="?halaman=<?= $halamanAktif - 1 ?>">Previous</a>
-                                </li>
-                                <?php endif; ?>
-
-                                <?php for($i = 1; $i <= $jumlahHalaman; $i++) : ?>
-                                <li class="page-item <?= ($i == $halamanAktif) ? 'active' : '' ; ?>">
-                                    <a class="page-link" href="?halaman=<?= $i;?>"><?= $i;?></a>
-                                </li>
-                                <?php endfor; ?>
-                                <?php if($halamanAktif < $jumlahHalaman) : ?>
-                                <li class="page-item">
-                                    <a class="page-link" href="?halaman=<?= $halamanAktif + 1 ?>">Next</a>
-                                </li>
-                                <?php endif; ?>
-                            </ul>
-                        </nav>
-                    </div>
-                </table>
-            </div>
         </div>
+        <div class="card-body">
+            <table class="table">
+                <thead>
+                    <tr class="thead">
+                        <th scope="col" class="no">No</th>
+                        <th scope="col" class="no">No Asset</th>
+                        <th scope="col" class="date">Date</th>
+                        <th scope="col" class="user">User</th>
+                        <th scope="col" class="department">Department</th>
+                        <th scope="col" class="itemlist1">Item List</th>
+                        <th scope="col" class="aksi">AKSI</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <?php 
+                        //sukses hapus data
+                        if (isset($_GET['sukses'])) {
+                            $sukses = "Berhasil hapus data";
+                        }
+                    ?>
+                    <?php if($sukses): ?>
+                    <div class="alert alert-success" role="alert">
+                        <?php echo $sukses; ?>
+                    </div>
+                    <?php endif; ?>
+                    <?php
+                    $keyword = isset($_GET['keyword']) ? $_GET['keyword'] : ''; // Ambil kata kunci pencarian dari URL
+                    $limit = 8; // Jumlah data per halaman
+                    $offset = ($halamanAktif - 1) * $limit; // Menghitung offset berdasarkan halaman aktif
+
+                    // Kueri SQL awal untuk mengambil data dari tabel asset
+                    $sql2 = "SELECT * FROM asset";
+
+                    // Jika ada kata kunci pencarian, tambahkan klausa WHERE untuk menyaring data berdasarkan inisial
+                    if (!empty($keyword)) {
+                        // Gunakan klausa WHERE untuk menyaring data berdasarkan berbagai kolom
+                        $sql2 .= " WHERE no_asset LIKE '%$keyword%' OR item_list1 LIKE '%$keyword%' OR item_list2 LIKE '%$keyword%' 
+                        OR item_list3 LIKE '%$keyword%' OR department LIKE '%$keyword%' OR user LIKE '%$keyword%' OR item_list4 LIKE '%$keyword%'
+                        OR item_list5 LIKE '%$keyword%' OR item_list6 LIKE '%$keyword%' OR item_list7 LIKE '%$keyword%' 
+                        OR item_list8 LIKE '%$keyword%' OR item_list9 LIKE '%$keyword%' OR item_list10 LIKE '%$keyword%' OR note LIKE '%$keyword%'";
+                    }
+
+                    // Tambahkan klausa ORDER BY dan LIMIT OFFSET ke kueri SQL
+                    $sql2 .= " ORDER BY id DESC LIMIT $limit OFFSET $offset";
+
+                    // Eksekusi kueri SQL
+                    $q2 = mysqli_query($koneksi, $sql2);
+
+                    // Periksa apakah ada data yang ditemukan
+                    $adaData = mysqli_num_rows($q2) > 0;
+
+                    // Menghitung nilai awal variabel $no berdasarkan offset
+                    $no = $offset + 1;
+
+                    // Loop untuk menampilkan data
+                    while ($r2 = mysqli_fetch_array($q2)) {
+                        // Ambil data dari setiap baris hasil kueri
+                        $no_asset   = $r2['no_asset'];
+                        $date       = $r2['date'];
+                        $user       = $r2['user'];
+                        $department = $r2['department'];
+                        $item_list1 = $r2['item_list1'];
+                        $item_list2 = $r2['item_list2'];
+                        $item_list3 = $r2['item_list3'];
+                        $item_list4 = $r2['item_list4'];
+                        $item_list5 = $r2['item_list5'];
+                        $item_list6 = $r2['item_list6'];
+                        $item_list7 = $r2['item_list7'];
+                        $item_list8 = $r2['item_list8'];
+                        $item_list9 = $r2['item_list9'];
+                        $item_list10 = $r2['item_list10'];
+                        $note       = $r2['note'];
+                        // Tampilkan data sesuai kebutuhan
+                    ?>
+                    <tr class="isi">
+                        <td scope="row" class="text-center"><?php echo $no++ ;?></td>
+                        <td scope="row" class="text-center"><?php echo $no_asset ;?></td>
+                        <td scope="row" class="text-center"><?php echo $date ?></td>
+                        <td scope="row" class="text-center"><?php echo $user ?></td>
+                        <td scope="row" class="text-center"><?php echo $department ?></td>
+                        <td scope="row" class="text-center">
+                            <?php echo $item_list1?><br><?php echo $item_list2?><br><?php echo $item_list3 ?></td>
+                        <td scope="row" class="aksi">
+                            <a href="fasset.php?op=edit&id=<?php echo $r2['id']; ?>" class="btn btn-warning"><i
+                                    class="fas fa-pencil-alt"></i></a>
+                            <a href="asset.php?op=delete&id=<?php echo $r2['id']; ?>"
+                                onclick="return confirm('yakin mau hapus data?')" class="btn btn-danger"><i
+                                    class="fas fa-trash-alt"></i></a>
+                            <a href="passet.php?id=<?php echo $r2['id']; ?>" class="btn btn-success" target="_blank"><i
+                                    class="fas fa-print"></i></a>
+                        </td>
+                    </tr>
+                    <?php 
+                        }
+                        if (!$adaData) {
+                            echo "<tr><td colspan='7' class='text-center'>Data Tidak Ditemukan</td></tr>";
+                        }
+                    ?>
+                </tbody>
+            </table>
+        </div>
+        <nav>
+            <ul class="pagination justify-content-end" style="margin-right:20px;">
+                <?php if($halamanAktif > 1) : ?>
+                <li class="page-item">
+                    <a class="page-link" href="?halaman=<?= $halamanAktif - 1 ?>">Previous</a>
+                </li>
+                <?php endif; ?>
+                <?php for($i = 1; $i <= $jumlahHalaman; $i++) : ?>
+                <li class="page-item <?= ($i == $halamanAktif) ? 'active' : '' ; ?>">
+                    <a class="page-link" href="?halaman=<?= $i;?>"><?= $i;?></a>
+                </li>
+                <?php endfor; ?>
+                <?php if($halamanAktif < $jumlahHalaman) : ?>
+                <li class="page-item">
+                    <a class="page-link" href="?halaman=<?= $halamanAktif + 1 ?>">Next</a>
+                </li>
+                <?php endif; ?>
+            </ul>
+        </nav>
     </div>
 </body>
+
 <style>
 .judul {
     font-size: 25px;
     padding: 5px;
     text-decoration: thistle;
-}
-
-.card-header {
-    font-family: "trebuchet ms";
-    background-color: #F1F1F1;
-}
-
-.selectAll {
-    width: 8%;
-    text-align: center;
+    font-family: 'Trebuchet MS';
 }
 
 .date {
@@ -391,12 +410,6 @@ if(isset($_POST['filter'])) {
     text-align: center;
 }
 
-.center-checkbox {
-    text-align: center;
-    /* Mengatur posisi horizontal menjadi tengah */
-    line-height: 40px;
-    /* Mengatur posisi vertikal */
-}
 
 .no {
     width: 4%;
