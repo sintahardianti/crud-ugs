@@ -1,18 +1,20 @@
 <?php
 include 'db.php';
-session_start(); // Pastikan session dimulai
+session_start();
 
-// Proses logout
-if (isset($_GET['logout'])) {
-    // Hapus semua sesi
-    session_unset();
-    session_destroy();
-
-    // Arahkan pengguna ke halaman login atau halaman beranda
+// Pengecekan apakah pengguna sudah login
+if (!isset($_SESSION["is_login"]) || !$_SESSION["is_login"]) {
     header("Location: akun.php");
-    exit();
+    exit;
 }
 
+// Logout
+if (isset($_GET['logout'])) {
+    session_unset();
+    session_destroy();
+    echo '<script>window.location.replace("akun.php");</script>';
+    exit();
+}
 
 $no_barang = $_GET['no_barang'] ?? null;
 $sukses = $_GET['sukses'] ?? null;
@@ -60,6 +62,13 @@ $detail_count = count($details);
     <link rel="stylesheet" href="styles.css">
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.4/css/all.min.css">
+    <script>
+    // Mengunci tombol navigasi mundur dan maju
+    history.pushState(null, null, location.href);
+    window.onpopstate = function() {
+        history.go(1);
+    };
+    </script>
 </head>
 
 <?php include "layout/header.php" ?>
