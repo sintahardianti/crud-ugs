@@ -1,4 +1,21 @@
 <?php 
+
+session_start();
+
+// Pengecekan apakah pengguna sudah login
+if (!isset($_SESSION["is_login"]) || !$_SESSION["is_login"]) {
+    header("Location: akun.php");
+    exit;
+}
+
+// Logout
+if (isset($_GET['logout'])) {
+    session_unset();
+    session_destroy();
+    echo '<script>window.location.replace("akun.php");</script>';
+    exit();
+}
+
 $host       ="localhost";
 $user       ="root";
 $password   = "";
@@ -157,24 +174,6 @@ function generateNoAsset()
     return "IT-".$newKode; // Return kode baru
 }
 
-session_start(); // pastikan ini dijalankan di setiap halaman
- 
-// Jika pengguna belum masuk, arahkan ke halaman login
-if (!isset($_SESSION['is_login']) || $_SESSION['is_login'] !== true) {
-    header("Location: akun.php");
-    exit();
-}
-
- // Proses logout
- if (isset($_GET['logout'])) {
-     // Hapus semua sesi
-     session_unset();
-     session_destroy();
-     
-     // Arahkan pengguna ke halaman login atau halaman beranda
-     header("Location: akun.php"); // Ganti 'login.php' dengan halaman yang sesuai
-     exit();
- }
  
  ?>
 
@@ -188,6 +187,13 @@ if (!isset($_SESSION['is_login']) || $_SESSION['is_login'] !== true) {
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.4/css/all.min.css"
         integrity="sha512-xxx" crossorigin="anonymous" />
     <title>Tanda Terima Asset</title>
+    <script>
+    // Mengunci tombol navigasi mundur dan maju
+    history.pushState(null, null, location.href);
+    window.onpopstate = function() {
+        history.go(1);
+    };
+    </script>
 </head>
 
 <body>
