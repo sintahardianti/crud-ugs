@@ -1,6 +1,5 @@
 <?php
 session_start();
-
 include 'db.php';
 
 // Pengecekan apakah pengguna sudah login
@@ -17,31 +16,57 @@ if (isset($_GET['logout'])) {
     exit();
 }
 
+// Fungsi untuk menghasilkan no_barang baru
+function generateNoBarang($conn) {
+    $result = $conn->query("SELECT MAX(CAST(SUBSTRING(no_barang, 4) AS UNSIGNED)) as max_no FROM `index`");
+    if ($result && $row = $result->fetch_assoc()) {
+        $lastNumber = $row['max_no'];
+    } else {
+        $lastNumber = 0;
+    }
+    $newNumber = $lastNumber + 1;
+    return 'IT-' . str_pad($newNumber, 6, '0', STR_PAD_LEFT);
+}
+
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['simpan'])) {
     $user = $conn->real_escape_string($_POST['user']);
     $periode = $conn->real_escape_string($_POST['periode']);
-
-    // Fungsi untuk menghasilkan no_barang baru
-    function generateNoBarang($conn) {
-        $result = $conn->query("SELECT no_barang FROM `index` ORDER BY no_barang DESC LIMIT 1");
-        if ($result && $row = $result->fetch_assoc()) {
-            $lastNumber = intval(substr($row['no_barang'], 3));
-        } else {
-            $lastNumber = 0;
-        }
-        $newNumber = $lastNumber + 1;
-        return 'IT-' . str_pad($newNumber, 6, '0', STR_PAD_LEFT);
-    }
-
     $no_barang = generateNoBarang($conn);
 
-    // Insert data into the `index` table
-    $sql = "INSERT INTO `index` (no_barang, user, periode) VALUES ('$no_barang', '$user', '$periode')";
-    if ($conn->query($sql) === TRUE) {
-        header('Location: index.php');
-        exit;
+    // Insert data into the `index` table using prepared statements
+    $stmt = $conn->prepare("INSERT INTO `index` (no_barang, user, periode) VALUES (?, ?, ?)");
+    if ($stmt) {
+        $stmt->bind_param("sss", $no_barang, $user, $periode);
+        if ($stmt->execute()) {
+            header('Location: index.php');
+            exit;
+        } else {
+            echo "Query Error: " . $stmt->error;
+        }
+        $stmt->close();
     } else {
-        die("Query Error: " . $conn->error);
+        echo "Query Preparation Error: " . $conn->error;
+    }
+}
+
+// Proses penghapusan data
+if (isset($_GET['delete'])) {
+    $id = $_GET['delete'];
+    $stmt = $conn->prepare("DELETE FROM `index` WHERE no_barang = ?");
+    if ($stmt) {
+        $stmt->bind_param("s", $id);
+        if ($stmt->execute()) {
+            // Urutkan ulang nomor barang setelah penghapusan data
+            $conn->query("SET @num := 0");
+            $conn->query("UPDATE `index` SET no_barang = CONCAT('IT-', LPAD(@num := @num + 1, 6, '0')) ORDER BY no_barang");
+            header('Location: index.php');
+            exit;
+        } else {
+            echo "Query Error: " . $stmt->error;
+        }
+        $stmt->close();
+    } else {
+        echo "Query Preparation Error: " . $conn->error;
     }
 }
 
@@ -51,22 +76,33 @@ $perPage = 8;
 // Proses pencarian
 $keyword = isset($_GET['keyword']) ? $_GET['keyword'] : '';
 $whereClause = "";
+$params = [];
 if ($keyword !== '') {
-    $keyword = $conn->real_escape_string($keyword); // Pastikan untuk menghindari SQL Injection
-    $whereClause = "WHERE no_barang LIKE '%$keyword%' OR user LIKE '%$keyword%' OR periode LIKE '%$keyword%'";
+    $keyword = "%{$keyword}%";
+    $whereClause = "WHERE no_barang LIKE ? OR user LIKE ? OR periode LIKE ?";
+    $params = [$keyword, $keyword, $keyword];
 }
 
 // Menghitung jumlah total halaman
 $sqlCount = "SELECT COUNT(*) as total FROM `index` $whereClause";
-$resultCount = $conn->query($sqlCount);
-
-if (!$resultCount) {
-    die("Query Error: " . $conn->error);
+$stmt = $conn->prepare($sqlCount);
+if ($stmt) {
+    if (!empty($params)) {
+        $stmt->bind_param(str_repeat('s', count($params)), ...$params);
+    }
+    $stmt->execute();
+    $resultCount = $stmt->get_result();
+    if ($resultCount) {
+        $row = $resultCount->fetch_assoc();
+        $totalItems = $row['total'];
+        $totalPages = ceil($totalItems / $perPage);
+    } else {
+        echo "Query Error: " . $stmt->error;
+    }
+    $stmt->close();
+} else {
+    echo "Query Preparation Error: " . $conn->error;
 }
-
-$row = $resultCount->fetch_assoc();
-$totalItems = $row['total'];
-$totalPages = ceil($totalItems / $perPage);
 
 // Mendapatkan halaman saat ini dari parameter GET, jika tidak ada default ke halaman 1
 $currentPage = isset($_GET['page']) ? (int)$_GET['page'] : 1;
@@ -83,14 +119,23 @@ if ($offset < 0) {
 }
 
 // Mengambil subset data untuk halaman saat ini
-$sql = "SELECT * FROM `index` $whereClause LIMIT $offset, $perPage";
-$result = $conn->query($sql);
-
-if (!$result) {
-    die("Query Error: " . $conn->error);
+$sql = "SELECT * FROM `index` $whereClause ORDER BY no_barang DESC LIMIT ?, ?";
+$stmt = $conn->prepare($sql);
+if ($stmt) {
+    $params[] = $offset;
+    $params[] = $perPage;
+    $stmt->bind_param(str_repeat('s', count($params) - 2) . 'ii', ...$params);
+    $stmt->execute();
+    $result = $stmt->get_result();
+    if ($result) {
+        $currentData = $result->fetch_all(MYSQLI_ASSOC);
+    } else {
+        echo "Query Error: " . $stmt->error;
+    }
+    $stmt->close();
+} else {
+    echo "Query Preparation Error: " . $conn->error;
 }
-
-$currentData = $result->fetch_all(MYSQLI_ASSOC);
 ?>
 
 
@@ -225,6 +270,7 @@ $currentData = $result->fetch_all(MYSQLI_ASSOC);
         const addBtn = document.getElementById('addBtn');
         const popupForm = document.getElementById('popupForm');
         const closeBtn = popupForm.querySelector('.close');
+        const deleteSuccessMessage = document.getElementById('deleteSuccessMessage');
 
         addBtn.addEventListener('click', () => {
             popupForm.style.display = 'block';
@@ -260,23 +306,30 @@ $currentData = $result->fetch_all(MYSQLI_ASSOC);
             xhr.setRequestHeader("Content-Type", "application/x-www-form-urlencoded");
             xhr.onreadystatechange = function() {
                 if (xhr.readyState === 4 && xhr.status === 200) {
-                    // Tampilkan pesan sukses
-                    document.getElementById('deleteSuccessMessage').style.display = 'block';
+                    if (xhr.responseText === "success") {
+                        // Tampilkan pesan sukses
+                        document.getElementById('deleteSuccessMessage').style.display = 'block';
 
-                    // Hapus baris dari tabel
-                    var row = button.parentNode.parentNode;
-                    row.parentNode.removeChild(row);
+                        // Hapus baris dari tabel
+                        var row = button.parentNode.parentNode;
+                        row.parentNode.removeChild(row);
 
-                    // Sembunyikan pesan setelah beberapa detik
-                    setTimeout(function() {
-                        document.getElementById('deleteSuccessMessage').style.display = 'none';
-                    }, 2000); // 2 detik
+                        // Sembunyikan pesan setelah beberapa detik dan refresh halaman
+                        setTimeout(function() {
+                            document.getElementById('deleteSuccessMessage').style.display = 'none';
+                            location.reload(); // Refresh halaman
+                        }, 2000); // 2 detik
+                    } else {
+                        alert("Gagal menghapus data: " + xhr.responseText);
+                    }
                 }
             };
-            xhr.send("no_barang=" + no_barang);
+            xhr.send("no_barang=" + encodeURIComponent(no_barang));
         }
     }
     </script>
+
+
     <div id="popupForm" class="popup">
         <div class="popup-content">
             <span class="close">&times;</span>
