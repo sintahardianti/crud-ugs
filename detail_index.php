@@ -164,12 +164,30 @@ $detail_count = count($details);
             </table>
             <br>
             <div class="d-flex justify-content-end">
-                <a href="print2.php?no_barang=<?= htmlspecialchars($no_barang) ?>" id="print" class="btn btn-success"
-                    target="_blank">Print <i class="fas fa-print"></i></a>
+                <div class="d-flex justify-content-end">
+                    <?php
+                    // Mengirim informasi tentang detail yang tersedia ke halaman print2.php
+                    $detail_available = ($result_detail->num_rows > 0) ? 'true' : 'false';
+                    ?>
+                    <a href="javascript:void(0);" id="print" class="btn btn-success"
+                        data-detail-available="<?php echo $detail_available; ?>">Print <i class="fas fa-print"></i></a>
+                </div>
+
+                <script>
+                document.getElementById('print').addEventListener('click', function(event) {
+                    var detailAvailable = this.getAttribute('data-detail-available');
+                    if (detailAvailable === 'false') {
+                        alert('Detail Tidak Tersedia');
+                    } else {
+                        window.open(
+                            'print2.php?no_barang=<?php echo htmlspecialchars($no_barang); ?>&detail_available=true',
+                            '_blank');
+                    }
+                });
+                </script>
             </div>
         </div>
     </div>
-
     <!-- Popup Form for Adding and Editing Details -->
     <div id="popupForm" class="popup" style="display:none;">
         <div class="popup-content">
