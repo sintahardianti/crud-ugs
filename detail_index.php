@@ -188,7 +188,6 @@ $detail_count = count($details);
             </div>
         </div>
     </div>
-    <!-- Popup Form for Adding and Editing Details -->
     <div id="popupForm" class="popup" style="display:none;">
         <div class="popup-content">
             <span class="close">&times;</span>
@@ -223,6 +222,9 @@ $detail_count = count($details);
         </div>
     </div>
 
+    <div id="successMessage" class="alert alert-success" style="display:none;">Berhasil Mengedit Data</div>
+    <div id="deleteSuccessMessage" class="alert alert-success" style="display:none;">Berhasil Menghapus Data</div>
+
     <script>
     document.addEventListener('DOMContentLoaded', () => {
         const addDetailBtn = document.getElementById('addDetailBtn');
@@ -236,51 +238,43 @@ $detail_count = count($details);
         const ket2Input = document.getElementById('ket2');
         const btnEdits = document.querySelectorAll('.btn-edit');
         const successMessage = document.getElementById('successMessage');
-        const deleteSuccessMessage = document.getElementById(
-            'deleteSuccessMessage'); // Tambahkan elemen pesan sukses hapus
+        const deleteSuccessMessage = document.getElementById('deleteSuccessMessage');
+        const TIMEOUT_DURATION = 1000;
 
-        // Function to show success message
-        function showSuccessMessage(messageElement) {
+        function showMessage(messageElement) {
             messageElement.style.display = 'block';
-            setTimeout(function() {
+            setTimeout(() => {
                 messageElement.style.display = 'none';
-            }, 1000); // Hide after 3 seconds
+            }, TIMEOUT_DURATION);
         }
 
-        // Script for handling delete buttons
-        var deleteButtons = document.querySelectorAll(".btn-delete");
-        deleteButtons.forEach(function(button) {
-            button.addEventListener("click", function(event) {
+        const deleteButtons = document.querySelectorAll(".btn-delete");
+        deleteButtons.forEach(button => {
+            button.addEventListener("click", event => {
                 event.preventDefault();
-                var confirmation = confirm('Yakin mau hapus data?');
+                const confirmation = confirm('Yakin mau hapus data?');
                 if (confirmation) {
-                    var detailId = this.getAttribute('data-id');
-                    var noBarang = this.getAttribute('data-no-barang');
-                    fetch('delete_detail.php?no_barang=' + noBarang + '&detail_id=' +
-                            detailId, {
-                                method: 'GET'
-                            })
-                        .then(function(response) {
+                    const detailId = button.getAttribute('data-id');
+                    const noBarang = button.getAttribute('data-no-barang');
+                    fetch(`delete_detail.php?no_barang=${encodeURIComponent(noBarang)}&detail_id=${encodeURIComponent(detailId)}`, {
+                            method: 'GET'
+                        })
+                        .then(response => {
                             if (response.ok) {
-                                // Tampilkan pesan berhasil hapus
-                                showSuccessMessage(deleteSuccessMessage);
-
-                                // Refresh halaman setelah penghapusan berhasil
-                                setTimeout(function() {
+                                showMessage(deleteSuccessMessage);
+                                setTimeout(() => {
                                     location.reload();
-                                }, 1000); // Refresh setelah 3 detik
+                                }, TIMEOUT_DURATION);
                             } else {
                                 console.error('Error:', response.statusText);
-                                // Handle error here if needed
                             }
                         })
-                        .catch(function(error) {
+                        .catch(error => {
                             console.error('Error:', error);
                         });
                 }
             });
         });
-        // End of delete buttons script
 
         addDetailBtn.addEventListener('click', () => {
             popupTitle.textContent = 'Tambah Barang';
@@ -290,11 +284,11 @@ $detail_count = count($details);
             jumlahInput.value = '';
             ket2Input.value = '';
             popupForm.style.display = 'block';
-            successMessage.style.display = 'none'; // Hide success message
+            successMessage.style.display = 'none';
         });
 
         btnEdits.forEach(btn => {
-            btn.addEventListener('click', (e) => {
+            btn.addEventListener('click', () => {
                 const id = btn.getAttribute('data-id');
                 const nama = btn.getAttribute('data-nama');
                 const jumlah = btn.getAttribute('data-jumlah');
@@ -306,12 +300,12 @@ $detail_count = count($details);
                 jumlahInput.value = jumlah;
                 ket2Input.value = keterangan2;
                 popupForm.style.display = 'block';
-                successMessage.style.display = 'none'; // Hide success message
+                successMessage.style.display = 'none';
             });
         });
 
-        form.addEventListener('submit', (e) => {
-            e.preventDefault(); // Prevent default form submission
+        form.addEventListener('submit', event => {
+            event.preventDefault();
             const formData = new FormData(form);
             fetch(form.action, {
                     method: 'POST',
@@ -319,13 +313,12 @@ $detail_count = count($details);
                 })
                 .then(response => {
                     if (response.ok) {
-                        popupForm.style.display = 'none'; // Close popup
-                        successMessage.style.display = 'block'; // Show success message
+                        popupForm.style.display = 'none';
+                        showMessage(successMessage);
                         setTimeout(() => {
-                            location.reload(); // Refresh the page after 3 seconds
-                        }, 1000);
+                            location.reload();
+                        }, TIMEOUT_DURATION);
                     } else {
-                        // Handle error here if needed
                         console.error('Error:', response.statusText);
                     }
                 })
@@ -338,13 +331,15 @@ $detail_count = count($details);
             popupForm.style.display = 'none';
         });
 
-        window.addEventListener('click', (event) => {
+        window.addEventListener('click', event => {
             if (event.target === popupForm) {
                 popupForm.style.display = 'none';
             }
         });
     });
     </script>
+
 </body>
+
 
 </html>
