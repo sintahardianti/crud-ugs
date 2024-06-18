@@ -3,18 +3,10 @@
 session_start();
 
 // Sambungkan ke database
-$host = "localhost";
-$user = "root";
-$password = "";
-$dbname = "latihan";
+include 'db.php';
 
-// Buat koneksi
-$conn = new mysqli($host, $user, $password, $dbname);
-
-// Periksa koneksi
-if ($conn->connect_error) {
-    die("Koneksi gagal: " . $conn->connect_error);
-}
+// Include TCPDF library
+require_once('tcpdf/tcpdf.php');
 
 // Periksa apakah parameter 'no_barang' ada di URL
 if (!isset($_GET['no_barang'])) {
@@ -63,6 +55,28 @@ if ($result_index->num_rows > 0) {
     $result_detail = $stmt_detail->get_result();
 
     if ($result_detail->num_rows > 0) {
+        // Buat objek PDF
+        $pdf = new TCPDF(PDF_PAGE_ORIENTATION, PDF_UNIT, PDF_PAGE_FORMAT, true, 'UTF-8', false);
+
+        // Setel informasi dokumen
+        $pdf->SetCreator(PDF_CREATOR);
+        $pdf->SetAuthor('PT. Unggul Semesta');
+        $pdf->SetTitle('Bukti Pengeluaran Barang');
+        $pdf->SetSubject('PDF Bukti Pengeluaran Barang');
+        $pdf->SetKeywords('TCPDF, PDF, Bukti, Pengeluaran, Barang');
+
+        // Hapus header dan footer default
+        $pdf->setPrintHeader(false);
+        $pdf->setPrintFooter(false);
+
+        // Setel margin
+        $pdf->SetMargins(PDF_MARGIN_LEFT,PDF_MARGIN_TOP, PDF_MARGIN_RIGHT);
+        $pdf->SetMargins(15, 0, 15);
+        // Tambahkan halaman
+        $pdf->AddPage();
+
+        // Mulai buffering konten HTML
+        ob_start();
         ?>
 
 <!DOCTYPE html>
@@ -73,34 +87,71 @@ if ($result_index->num_rows > 0) {
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Cetak Pengeluaran Barang</title>
 </head>
+<style>
+.header1 {
+    font-family: 'Trebuchet MS';
+    margin-top: 0px;
+}
+
+h3 {
+    text-decoration: underline;
+    text-align: center;
+    padding: 0px;
+    margin: 0px;
+    font-size: 14px;
+}
+
+table,
+th,
+td {
+    border: 1px solid black;
+    border-collapse: collapse;
+    text-align: center;
+    font-family: 'Trebuchet MS';
+}
+
+.ttd {
+    height: 60px;
+}
+
+h4 {
+    font-size: 8px;
+}
+
+.t2 {
+    text-align: center;
+}
+
+tr.tr1 {
+    text-align: left;
+}
+</style>
 
 <body>
-    <header class="header1">
-        <p style="margin-bottom: 0; margin-top: 0;">PT. Unggul Semesta
-        <h3 style="margin-bottom: 0; margin-top: 0; margin-left: 50px;">BUKTI PENGELUARAN BARANG</h3>
-        </p>
+    <header class="header1" style="margin-top: 0;">
+        <p style="font-size:8px;">PT. Unggul Semesta</p>
+        <h3 style="">BUKTI PENGELUARAN BARANG</h3>
     </header>
-    <br>
     <div class="container">
-        <table>
+        <table style="width: 100%; margin-top: 10px;">
             <tr>
-                <th colspan="2" style="text-align:center;">No Barang: <?= $no_barang ?></th>
-                <th colspan="2" style="text-align:center;">Periode: <?= $periode ?></th>
+                <th colspan="1" style="text-align:center;">No Barang: <?= $no_barang ?></th>
+                <th colspan="1" style="text-align:center;">Periode: <?= $periode ?></th>
             </tr>
-            <tr>
-                <th style="width:4%">No.</th>
-                <th style="width:45%">Nama Barang</th>
+            <tr style="height:0px;font-weight:bold;text-align:center;">
+                <th style="width:6%">No.</th>
+                <th style="width:44%">Nama Barang</th>
                 <th style="width:20%">Jumlah</th>
                 <th>Keterangan</th>
             </tr>
             <?php 
-    $rowCount = 10; // Set jumlah baris yang diinginkan
-    
-    // Looping sebanyak jumlah baris yang diinginkan
-    for ($i = 1; $i <= $rowCount; $i++) { 
-        if ($result_detail->num_rows > 0 && $row_detail = $result_detail->fetch_assoc()) {
-            // Jika masih ada data detail barang
-    ?>
+            $rowCount = 10; // Set jumlah baris yang diinginkan
+            
+            // Looping sebanyak jumlah baris yang diinginkan
+            for ($i = 1; $i <= $rowCount; $i++) { 
+                if ($result_detail->num_rows > 0 && $row_detail = $result_detail->fetch_assoc()) {
+                    // Jika masih ada data detail barang
+            ?>
             <tr>
                 <td><?= $i ?></td>
                 <td><?= htmlspecialchars($row_detail['nama_barang']) ?? '' ?></td>
@@ -108,9 +159,9 @@ if ($result_index->num_rows > 0) {
                 <td><?= htmlspecialchars($row_detail['keterangan2']) ?? '' ?></td>
             </tr>
             <?php 
-        } else {
-            // Jika tidak ada data detail barang atau sudah mencapai 10 baris
-    ?>
+                } else {
+                    // Jika tidak ada data detail barang atau sudah mencapai 10 baris
+            ?>
             <tr>
                 <td><?= $i ?></td>
                 <td></td>
@@ -118,13 +169,13 @@ if ($result_index->num_rows > 0) {
                 <td></td>
             </tr>
             <?php 
-        }
-    } 
-    ?>
+                }
+            } 
+            ?>
         </table>
-
-        <br>
-        <table border="1" class="t2">
+    </div>
+    <div>
+        <table border="1" class="t2" style="width: 100%;">
             <tr>
                 <td colspan="2" class="t2"><span>Yang Mengeluarkan</span></td>
                 <td colspan="2" class="t2"><span>Mengetahui</span></td>
@@ -152,65 +203,26 @@ if ($result_index->num_rows > 0) {
                 <td colspan="1" class="nama" style="text-align:center;"><?= $user ?></td>
             </tr>
         </table>
-        </table>
         <h4>DIVISI IT/UGS</h4>
     </div>
 </body>
 
-<style>
-<style>.header1 {
-    font-family: 'Trebuchet MS';
-    margin: auto;
-}
-
-h3 {
-    text-decoration: underline;
-    font-family: 'Trebuchet MS';
-    padding-left: 270px;
-}
-
-table,
-th,
-td {
-    border: 1px solid black;
-    padding-left: 4px;
-    border-collapse: collapse;
-    text-align: center;
-    height: 22px;
-    width: 905px;
-    font-family: 'Trebuchet MS';
-}
-
-.ttd {
-    padding: 10px;
-    height: 75px;
-}
-
-h4 {
-    font-size: 10px;
-    font-family: 'Trebuchet MS';
-    margin-top: 5px;
-}
-
-.t2 {
-    margin-top: 30px;
-    text-align: center;
-}
-
-tr.tr1 {
-    text-align: left;
-}
-</style>
-</style>
-
 </html>
 
 <?php
+        // Akhiri buffering dan ambil konten HTML
+        $html = ob_get_clean();
+
+        // Konversi HTML menjadi PDF
+        $pdf->writeHTML($html, true, false, true, false, '');
+
+        // Output PDF ke browser
+        $pdf->Output('bukti_pengeluaran_barang.pdf', 'I');
     } else {
         echo "Tidak ada detail tersedia.";
     }
 } else {
-    die("Nomor Barang tidak valid");
+    die("Data tidak valid atau tidak ditemukan");
 }
 
 $stmt->close(); // Tutup pernyataan yang disiapkan untuk index
