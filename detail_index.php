@@ -341,5 +341,4 @@ $detail_count = count($details);
 
 </body>
 
-
 </html>
