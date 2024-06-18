@@ -211,6 +211,46 @@ if(isset($_POST['filter'])) {
 
 </head>
 <?php include "layout/header.php" ?>
+<style>
+.judul {
+    font-size: 25px;
+    padding: 5px;
+    text-decoration: thistle;
+    font-family: 'Trebuchet MS';
+}
+
+.date {
+    width: 8%;
+    text-align: center;
+}
+
+.itemlist1,
+.aksi {
+    width: 12%;
+    text-align: center;
+}
+
+.thead {
+    text-align: center;
+}
+
+.department,
+.user {
+    width: 11%;
+    text-align: center;
+}
+
+
+.no {
+    width: 4%;
+}
+
+.isi {
+    justify-content: center;
+    /* Mengatur teks ke tengah secara horizontal */
+    align-items: center;
+}
+</style>
 
 <body>
     <div class="card">
@@ -380,44 +420,3 @@ if(isset($_POST['filter'])) {
         </nav>
     </div>
 </body>
-
-<style>
-.judul {
-    font-size: 25px;
-    padding: 5px;
-    text-decoration: thistle;
-    font-family: 'Trebuchet MS';
-}
-
-.date {
-    width: 8%;
-    text-align: center;
-}
-
-.itemlist1,
-.aksi {
-    width: 12%;
-    text-align: center;
-}
-
-.thead {
-    text-align: center;
-}
-
-.department,
-.user {
-    width: 11%;
-    text-align: center;
-}
-
-
-.no {
-    width: 4%;
-}
-
-.isi {
-    justify-content: center;
-    /* Mengatur teks ke tengah secara horizontal */
-    align-items: center;
-}
-</style>
